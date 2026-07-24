@@ -1,0 +1,11 @@
+# AI Resume Builder — Streamlit app
+# Run:    streamlit run app.py
+# Deploy: Streamlit Community Cloud or Hugging Face Spaces (point them at app.py)
+streamlit>=1.36
+google-genai>=1.0
+chromadb>=0.5
+sentence-transformers>=3.0
+beautifulsoup4>=4.12
+requests>=2.31
+python-dotenv>=1.0
+pypdf>=4.0
