@@ -6,6 +6,7 @@ import pytest
 
 import gradio_app
 from pipeline import PipelineError
+from pipeline import CoverLetterPipelineResult
 
 
 def test_writing_sample_uses_pasted_text_without_file():
@@ -56,3 +57,51 @@ def test_writing_sample_rejects_unsupported_upload(tmp_path):
 
     with pytest.raises(PipelineError, match=r"\.pdf, \.md, or \.txt"):
         gradio_app._resolve_writing_sample(str(upload), "fallback text")
+
+
+def test_cover_letter_runs_pipeline_renders_profile_and_uses_unique_downloads(monkeypatch):
+    monkeypatch.setattr(gradio_app, "_get_clients", lambda api_key: object())
+    calls = []
+
+    def fake_pipeline(**kwargs):
+        calls.append(kwargs)
+        yield ("warn", "Review this warning.", None)
+        result = CoverLetterPipelineResult(
+            cover_letter="# Dear Hiring Team\n\nA grounded letter.",
+            coverage={"coverage_pct": 100, "covered": 1, "total": 1, "gaps": []},
+            style_profile={"tone": "direct", "sentence_patterns": ["short", "active"]},
+            retrieved_evidence={"Python": [{"source": "resume", "text": "Built a tool"}]},
+            fact_check="No unsupported claims.",
+            log=["Coverage: 100%"],
+        )
+        yield ("done", "Done", result)
+
+    monkeypatch.setattr(gradio_app.pipeline, "run_cover_letter_pipeline", fake_pipeline)
+    arguments = (
+        "test-key", "Paste text", "Python required", "", None, "My resume",
+        None, "My writing sample", "", "The mission matters", "Standard",
+    )
+
+    first = list(gradio_app.run_cover_letter(*arguments))[-1]
+    second = list(gradio_app.run_cover_letter(*arguments))[-1]
+
+    assert "Review this warning." in first[0]
+    assert first[1].startswith("# Dear Hiring Team")
+    assert "**Tone:** direct" in first[3]
+    assert "**Sentence Patterns:** short, active" in first[3]
+    assert first[7]["value"] != second[7]["value"]
+    assert calls[0]["length_preference"] == "standard"
+
+
+def test_cover_letter_validates_required_inputs_without_initializing_clients(monkeypatch):
+    def unexpected(_api_key):
+        raise AssertionError("clients should not be initialized")
+
+    monkeypatch.setattr(gradio_app, "_get_clients", unexpected)
+    output = list(gradio_app.run_cover_letter(
+        "", "Paste text", "", "", None, "", None, "", "", "", "Concise"
+    ))[-1]
+
+    assert "Google Gemini API key" in output[0]
+    assert "job description" in output[0]
+    assert "writing sample" in output[0]
