@@ -49,15 +49,30 @@ def _get_clients(api_key: str):
     return _client_cache[api_key]
 
 
+def _read_upload(upload) -> str:
+    """Read a Gradio upload, delegating PDF parsing to the pipeline."""
+    path = upload.name if hasattr(upload, "name") else upload
+    if path.lower().endswith(".pdf"):
+        with open(path, "rb") as f:
+            return pipeline.extract_text_from_pdf(f.read())
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
 def _resolve_resume(resume_file, resume_paste: str) -> str:
     if resume_file is not None:
-        path = resume_file.name if hasattr(resume_file, "name") else resume_file
-        if path.lower().endswith(".pdf"):
-            with open(path, "rb") as f:
-                return pipeline.extract_text_from_pdf(f.read())
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
+        return _read_upload(resume_file)
     return (resume_paste or "").strip()
+
+
+def _resolve_writing_sample(sample_file, sample_paste: str) -> str:
+    """Resolve an optional PDF, Markdown, text, or pasted writing sample."""
+    if sample_file is not None:
+        path = sample_file.name if hasattr(sample_file, "name") else sample_file
+        if not path.lower().endswith((".pdf", ".md", ".txt")):
+            raise PipelineError("Writing samples must be a .pdf, .md, or .txt file.")
+        return _read_upload(sample_file)
+    return (sample_paste or "").strip()
 
 
 def _coverage_markdown(cov: dict) -> str:
