@@ -8,3 +8,11 @@ __pycache__/
 .pytest_cache/
 venv/
 .venv/
+
+# Editor swap files
+*.swp
+
+# App-generated / local scratch inputs
+tailored_resume.md
+job_description.txt
+resume_example.md

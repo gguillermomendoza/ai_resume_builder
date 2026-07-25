@@ -98,6 +98,7 @@ def test_cover_letter_validates_required_inputs_without_initializing_clients(mon
         raise AssertionError("clients should not be initialized")
 
     monkeypatch.setattr(gradio_app, "_get_clients", unexpected)
+    monkeypatch.setattr(gradio_app, "_ENV_API_KEY", "")
     output = list(gradio_app.run_cover_letter(
         "", "Paste text", "", "", None, "", None, "", "", "", "Concise"
     ))[-1]
