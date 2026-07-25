@@ -644,6 +644,123 @@ class PipelineResult:
     log: list = field(default_factory=list)
 
 
+@dataclass
+class CoverLetterPipelineResult:
+    """Artifacts produced while building and checking a cover letter."""
+
+    repos: list = field(default_factory=list)
+    chunks: list = field(default_factory=list)
+    requirements: list = field(default_factory=list)
+    retrieved_evidence: dict = field(default_factory=dict)
+    style_profile: dict = field(default_factory=dict)
+    cover_letter: str = ""
+    coverage: dict = field(default_factory=dict)
+    fact_check: str = ""
+    injection_hits: dict = field(default_factory=dict)
+    log: list = field(default_factory=list)
+
+
+def run_cover_letter_pipeline(
+    jd_text: str,
+    resume_text: str,
+    writing_sample: str,
+    github_username: str = "",
+    user_motivation: str = "",
+    top_k: int = 2,
+    length_preference: str = "concise",
+) -> Iterator[tuple]:
+    """Run the cover-letter-only flow and stream progress events to callers."""
+    result = CoverLetterPipelineResult()
+
+    missing = [
+        label
+        for label, value in (
+            ("job description", jd_text),
+            ("resume", resume_text),
+            ("writing sample", writing_sample),
+        )
+        if not isinstance(value, str) or not value.strip()
+    ]
+    if missing:
+        error = PipelineError(f"Add a {missing[0]} before generating a cover letter.")
+        yield ("error", str(error), None)
+        return
+
+    inputs = {
+        "jd": ("job description", jd_text),
+        "resume": ("resume", resume_text),
+        "writing_sample": ("writing sample", writing_sample),
+        "motivation": ("motivation", user_motivation),
+    }
+    for key, (label, value) in inputs.items():
+        hits = screen_for_injection(value)
+        result.injection_hits[key] = hits
+        if hits:
+            yield ("warn", f"Possible prompt-injection markers in the {label}: {hits}", None)
+
+    try:
+        if github_username:
+            try:
+                result.repos = fetch_github_repos(github_username)
+                result.log.append(f"GitHub: {len(result.repos)} repos fetched")
+            except Exception as exc:
+                result.repos = []
+                result.log.append(
+                    f"GitHub fetch failed ({exc}) — continuing without repo evidence"
+                )
+                yield (
+                    "warn",
+                    f"Couldn't fetch GitHub repos for '{github_username}' — continuing without them.",
+                    None,
+                )
+
+        yield ("step", "Indexing your experience…", None)
+        result.chunks = chunk_source_material(resume_text, result.repos)
+        collection = build_index(result.chunks)
+        github_chunks = sum(1 for chunk in result.chunks if chunk["source"] == "github")
+        result.log.append(
+            f"Indexed {len(result.chunks)} chunks ({github_chunks} from GitHub)"
+        )
+
+        yield ("step", "Reading the job description…", None)
+        result.requirements = extract_jd_requirements(jd_text)
+        result.log.append(f"Extracted {len(result.requirements)} JD requirements")
+
+        yield ("step", "Selecting evidence for the letter…", None)
+        result.retrieved_evidence = retrieve_relevant_experience(
+            result.requirements, collection, top_k
+        )
+
+        yield ("step", "Analyzing your writing style…", None)
+        result.style_profile = extract_writing_style(writing_sample)
+
+        yield ("step", "Writing your cover letter…", None)
+        result.cover_letter = generate_cover_letter(
+            result.requirements,
+            result.retrieved_evidence,
+            result.style_profile,
+            user_motivation,
+            length_preference,
+        )
+
+        result.coverage = evaluate_rag_coverage(
+            result.requirements, result.retrieved_evidence
+        )
+        result.log.append(f"Coverage: {result.coverage['coverage_pct']}%")
+
+        yield ("step", "Fact-checking the cover letter…", None)
+        result.fact_check = cover_letter_fact_check(
+            resume_text, result.repos, user_motivation, result.cover_letter
+        )
+    except Exception as exc:
+        error = exc if isinstance(exc, PipelineError) else PipelineError(str(exc))
+        result.log.append(f"Pipeline failed: {error}")
+        yield ("error", str(error), None)
+        return
+
+    yield ("done", "Done", result)
+
+
 def run_pipeline(
     jd_text: str,
     resume_text: str,
