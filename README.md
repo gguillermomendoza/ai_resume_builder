@@ -84,6 +84,9 @@ current app process.
 4. Optionally enter a GitHub username, explicitly describe your motivation for the company or role, and choose the letter length.
 5. Click **Generate cover letter**, then review the letter, coverage summary, style profile, retrieved evidence, and fact-check report before downloading the Markdown output.
 
+The **Concise** option targets 250–350 words in 3–4 paragraphs. The **Standard**
+option targets 450–600 words in 4–5 paragraphs.
+
 ## Cover Letter
 
 The cover-letter workflow assigns a distinct role to each input:
