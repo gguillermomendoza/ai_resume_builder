@@ -1,12 +1,12 @@
 # AI Resume Builder
 
-A Streamlit app that tailors your resume to a specific job description using a
+A Gradio app that tailors your resume to a specific job description using a
 grounded RAG pipeline (Gemini + chromadb): it extracts JD requirements,
 retrieves matching evidence from your resume/GitHub, generates a tailored
 resume with source tags, checks it for fabrications, and shows a diff and a
 requirement-coverage dashboard.
 
-See `pipeline.py` for the pipeline logic and `app.py` for the UI. The
+See `pipeline.py` for the pipeline logic and `gradio_app.py` for the UI. The
 `AI_Resume_Builder_v1.ipynb` / `AI_Resume_Builder_v2_Phase2.ipynb` notebooks
 are the original, exploratory versions of this pipeline.
 
@@ -33,28 +33,28 @@ Set your API key (pick one):
 # Option A: one-off env var
 export GOOGLE_API_KEY=your_key_here
 
-# Option B: persist it in a .env file (auto-loaded by app.py)
+# Option B: persist it in a .env file (auto-loaded by gradio_app.py)
 echo "GOOGLE_API_KEY=your_key_here" > .env
 ```
 
 Run the app:
 
 ```bash
-streamlit run app.py
+python gradio_app.py
 ```
 
 
 ## Using the app
 
-Once running, Streamlit opens `http://localhost:8501` in your browser:
+Once running, Gradio opens `http://localhost:7860` in your browser:
 
 1. Paste a job description (or a URL to fetch it from).
 2. Paste or upload your resume (`.pdf`, `.md`, or `.txt`).
 3. Optionally add a GitHub username to pull in project evidence.
 4. Click **Tailor my resume**.
 
-If you didn't set `GOOGLE_API_KEY` via env var or `.env`, the sidebar will
-prompt you for it instead.
+If you didn't set `GOOGLE_API_KEY` via env var or `.env`, the Configuration
+panel will prompt you for it instead.
 
 ## Running the tests
 

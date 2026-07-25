@@ -1,7 +1,7 @@
-# AI Resume Builder — Streamlit app
-# Run:    streamlit run app.py
-# Deploy: Streamlit Community Cloud or Hugging Face Spaces (point them at app.py)
-streamlit>=1.36
+# AI Resume Builder — Gradio app
+# Run:    python gradio_app.py
+# Deploy: Hugging Face Spaces (point them at gradio_app.py)
+gradio>=4.0
 google-genai>=1.0
 chromadb>=0.5
 sentence-transformers>=3.0
