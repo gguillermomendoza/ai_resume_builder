@@ -140,3 +140,38 @@ def test_run_both_streams_resume_then_cover_without_duplicating_shared_inputs(mo
     assert calls[0][1][7:] == (3, True)
     assert calls[1][1][6:8] == (None, "sample")
     assert calls[1][1][9:] == ("motivation", "Concise")
+
+
+def test_shared_input_components_have_expected_labels_and_visibility():
+    config = gradio_app.demo.get_config_file()
+    components = config["components"]
+    jd_mode = next(
+        component["props"]
+        for component in components
+        if component["type"] == "radio"
+        and component["props"].get("choices")
+        == [("Paste text", "Paste text"), ("Fetch from URL", "Fetch from URL")]
+    )
+    jd_text = next(
+        component["props"]
+        for component in components
+        if component["props"].get("label") == "Paste the job description"
+    )
+    jd_url = next(
+        component["props"]
+        for component in components
+        if component["props"].get("label") == "Job posting URL"
+    )
+    resume_inputs = [
+        component for component in components
+        if component["props"].get("label") == "Upload your current résumé"
+    ]
+
+    assert jd_mode["choices"] == [
+        ("Paste text", "Paste text"),
+        ("Fetch from URL", "Fetch from URL"),
+    ]
+    assert jd_mode["show_label"] is False
+    assert jd_text["visible"] is True
+    assert jd_url["visible"] is False
+    assert [component["type"] for component in resume_inputs] == ["file", "textbox"]
