@@ -106,3 +106,37 @@ def test_cover_letter_validates_required_inputs_without_initializing_clients(mon
     assert "Google Gemini API key" in output[0]
     assert "job description" in output[0]
     assert "writing sample" in output[0]
+
+
+def test_run_both_streams_resume_then_cover_without_duplicating_shared_inputs(monkeypatch):
+    resume_final = tuple(f"resume-{index}" for index in range(8))
+    cover_steps = [
+        tuple(f"cover-progress-{index}" for index in range(8)),
+        tuple(f"cover-final-{index}" for index in range(8)),
+    ]
+    calls = []
+
+    def fake_run(*args):
+        calls.append(("resume", args))
+        yield resume_final
+
+    def fake_cover(*args):
+        calls.append(("cover", args))
+        yield from cover_steps
+
+    monkeypatch.setattr(gradio_app, "run", fake_run)
+    monkeypatch.setattr(gradio_app, "run_cover_letter", fake_cover)
+
+    outputs = list(gradio_app.run_both(
+        "key", "Paste text", "job", "", None, "resume", "octocat", 3, True,
+        None, "sample", "motivation", "Concise",
+    ))
+
+    assert outputs[0][:8] == resume_final
+    assert outputs[1][:8] == resume_final
+    assert outputs[-1][8:] == cover_steps[-1]
+    assert calls[0][1][:6] == calls[1][1][:6]
+    assert calls[0][1][6] == calls[1][1][8] == "octocat"
+    assert calls[0][1][7:] == (3, True)
+    assert calls[1][1][6:8] == (None, "sample")
+    assert calls[1][1][9:] == ("motivation", "Concise")
