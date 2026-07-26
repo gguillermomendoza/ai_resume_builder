@@ -440,7 +440,7 @@ with gr.Blocks(title="AI Resume Builder") as demo:
                 github_username = gr.Textbox(label="GitHub username (optional)")
             gr.Markdown("### Job description")
             jd_mode = gr.Radio(
-                ["Paste text", "Fetch from URL"], value="Paste text", label=None
+                ["Paste text", "Fetch from URL"], value="Paste text", show_label=False
             )
             jd_text_input = gr.Textbox(label="Paste the job description", lines=10)
             jd_url = gr.Textbox(label="Job posting URL", visible=False)
