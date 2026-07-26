@@ -365,6 +365,53 @@ def run(
     )
 
 
+def run_both(
+    api_key_input,
+    jd_mode,
+    jd_text_input,
+    jd_url,
+    resume_file,
+    resume_paste,
+    github_username,
+    top_k,
+    show_tags,
+    writing_sample_file,
+    writing_sample_paste,
+    user_motivation,
+    length_selection,
+):
+    resume_outputs = ("", "", "", "", "", "", "", gr.update(visible=False))
+    cover_outputs = ("", "", "", "", "", "", "", gr.update(visible=False))
+
+    for resume_outputs in run(
+        api_key_input,
+        jd_mode,
+        jd_text_input,
+        jd_url,
+        resume_file,
+        resume_paste,
+        github_username,
+        top_k,
+        show_tags,
+    ):
+        yield resume_outputs + cover_outputs
+
+    for cover_outputs in run_cover_letter(
+        api_key_input,
+        jd_mode,
+        jd_text_input,
+        jd_url,
+        resume_file,
+        resume_paste,
+        writing_sample_file,
+        writing_sample_paste,
+        github_username,
+        user_motivation,
+        length_selection,
+    ):
+        yield resume_outputs + cover_outputs
+
+
 with gr.Blocks(title="AI Resume Builder") as demo:
     gr.Markdown(
         "# AI Resume Builder\n"
@@ -374,90 +421,191 @@ with gr.Blocks(title="AI Resume Builder") as demo:
         "**Privacy:** Résumé, writing-sample, and job-description content may be sent "
         "to the configured Gemini API for processing."
     )
+    workflow_type = gr.Radio(
+        ["Tailor résumé", "Generate cover letter", "Both"],
+        value="Tailor résumé",
+        label="What would you like to create?",
+    )
 
-    with gr.Tabs():
-        with gr.Tab("Résumé"):
-            with gr.Row():
-                with gr.Column(scale=1):
-                    with gr.Accordion("Configuration", open=not bool(_ENV_API_KEY)):
-                        if _ENV_API_KEY:
-                            gr.Markdown("Gemini API key loaded from environment.")
-                        api_key_input = gr.Textbox(
-                            label="Google Gemini API key", type="password",
-                            placeholder="AIza…" if not _ENV_API_KEY else "(using environment key)",
+    with gr.Row():
+        with gr.Column(scale=1):
+            with gr.Accordion("Configuration", open=not bool(_ENV_API_KEY)):
+                if _ENV_API_KEY:
+                    gr.Markdown("Gemini API key loaded from environment.")
+                api_key_input = gr.Textbox(
+                    label="Google Gemini API key",
+                    type="password",
+                    placeholder="AIza…" if not _ENV_API_KEY else "(using environment key)",
+                )
+                github_username = gr.Textbox(label="GitHub username (optional)")
+            gr.Markdown("### Job description")
+            jd_mode = gr.Radio(
+                ["Paste text", "Fetch from URL"], value="Paste text", label=None
+            )
+            jd_text_input = gr.Textbox(label="Paste the job description", lines=10)
+            jd_url = gr.Textbox(label="Job posting URL", visible=False)
+            gr.Markdown("### Résumé")
+            resume_file = gr.File(
+                label="Upload résumé (.pdf, .md, .txt)",
+                file_types=[".pdf", ".md", ".txt"],
+            )
+            resume_paste = gr.Textbox(label="…or paste your résumé", lines=8)
+
+            with gr.Group(visible=True) as resume_options:
+                top_k = gr.Slider(
+                    label="Evidence per requirement",
+                    minimum=1,
+                    maximum=5,
+                    value=2,
+                    step=1,
+                )
+                show_tags = gr.Checkbox(
+                    label="Show [SOURCE] tags in output", value=False
+                )
+
+            with gr.Group(visible=False) as cover_options:
+                gr.Markdown("### Cover-letter details")
+                sample_file = gr.File(
+                    label="Upload writing sample (.pdf, .md, .txt)",
+                    file_types=[".pdf", ".md", ".txt"],
+                )
+                sample_paste = gr.Textbox(
+                    label="…or paste your writing sample", lines=6
+                )
+                motivation = gr.Textbox(
+                    label="Why are you interested in this company or role?", lines=3
+                )
+                length = gr.Radio(
+                    ["Concise", "Standard"], value="Standard", label="Length"
+                )
+            run_btn = gr.Button("Tailor my résumé", variant="primary")
+
+        with gr.Column(scale=2):
+            with gr.Group(visible=True) as resume_results:
+                status_box = gr.Markdown(label="Résumé status")
+                with gr.Tabs():
+                    with gr.Tab("Tailored résumé"):
+                        resume_out = gr.Markdown()
+                        download_file = gr.File(
+                            label="Download as Markdown", visible=False
                         )
-                        github_username = gr.Textbox(label="GitHub username (optional)")
-                        top_k = gr.Slider(label="Evidence per requirement", minimum=1, maximum=5, value=2, step=1)
-                    gr.Markdown("### Job description")
-                    jd_mode = gr.Radio(["Paste text", "Fetch from URL"], value="Paste text", label=None)
-                    jd_text_input = gr.Textbox(label="Paste the job description", lines=10)
-                    jd_url = gr.Textbox(label="Job posting URL", visible=False)
-                    gr.Markdown("### Resume")
-                    resume_file = gr.File(label="Upload resume (.pdf, .md, .txt)", file_types=[".pdf", ".md", ".txt"])
-                    resume_paste = gr.Textbox(label="…or paste your resume", lines=8)
-                    show_tags = gr.Checkbox(label="Show [SOURCE] tags in output", value=False)
-                    run_btn = gr.Button("Tailor my resume", variant="primary")
-                with gr.Column(scale=2):
-                    status_box = gr.Markdown(label="Status")
-                    with gr.Tabs():
-                        with gr.Tab("Tailored resume"):
-                            resume_out = gr.Markdown()
-                            download_file = gr.File(label="Download as Markdown", visible=False)
-                        with gr.Tab("Coverage"): coverage_out = gr.Markdown()
-                        with gr.Tab("Fabrication check"): fabrication_out = gr.Markdown()
-                        with gr.Tab("Evidence"): evidence_out = gr.Markdown()
-                        with gr.Tab("Diff"): diff_out = gr.Markdown()
-                        with gr.Tab("Run log"): log_out = gr.Markdown()
+                    with gr.Tab("Coverage"):
+                        coverage_out = gr.Markdown()
+                    with gr.Tab("Fabrication check"):
+                        fabrication_out = gr.Markdown()
+                    with gr.Tab("Evidence"):
+                        evidence_out = gr.Markdown()
+                    with gr.Tab("Diff"):
+                        diff_out = gr.Markdown()
+                    with gr.Tab("Run log"):
+                        log_out = gr.Markdown()
 
-        with gr.Tab("Cover Letter"):
-            with gr.Row():
-                with gr.Column(scale=1):
-                    cover_api_key = gr.Textbox(
-                        label="Google Gemini API key", type="password",
-                        placeholder="AIza…" if not _ENV_API_KEY else "(using environment key)",
-                    )
-                    cover_jd_mode = gr.Radio(["Paste text", "Fetch from URL"], value="Paste text", label="Job description source")
-                    cover_jd_text = gr.Textbox(label="Paste the job description", lines=8)
-                    cover_jd_url = gr.Textbox(label="Job posting URL", visible=False)
-                    cover_resume_file = gr.File(label="Upload resume (.pdf, .md, .txt)", file_types=[".pdf", ".md", ".txt"])
-                    cover_resume_paste = gr.Textbox(label="…or paste your resume", lines=6)
-                    sample_file = gr.File(label="Upload writing sample (.pdf, .md, .txt)", file_types=[".pdf", ".md", ".txt"])
-                    sample_paste = gr.Textbox(label="…or paste your writing sample", lines=6)
-                    cover_github = gr.Textbox(label="GitHub username (optional)")
-                    motivation = gr.Textbox(label="Why are you interested in this company or role?", lines=3)
-                    length = gr.Radio(["Concise", "Standard"], value="Standard", label="Length")
-                    cover_btn = gr.Button("Generate cover letter", variant="primary")
-                with gr.Column(scale=2):
-                    cover_status = gr.Markdown(label="Status / progress")
-                    with gr.Tabs():
-                        with gr.Tab("Cover letter"):
-                            cover_out = gr.Markdown()
-                            cover_download = gr.File(label="Download as Markdown", visible=False)
-                        with gr.Tab("Coverage summary"): cover_coverage = gr.Markdown()
-                        with gr.Tab("Writing-style profile"): style_out = gr.Markdown()
-                        with gr.Tab("Retrieved evidence"): cover_evidence = gr.Markdown()
-                        with gr.Tab("Fact-check report"): fact_check = gr.Markdown()
-                        with gr.Tab("Run log"): cover_log = gr.Markdown()
+            with gr.Group(visible=False) as cover_results:
+                cover_status = gr.Markdown(label="Cover-letter status / progress")
+                with gr.Tabs():
+                    with gr.Tab("Cover letter"):
+                        cover_out = gr.Markdown()
+                        cover_download = gr.File(
+                            label="Download as Markdown", visible=False
+                        )
+                    with gr.Tab("Coverage summary"):
+                        cover_coverage = gr.Markdown()
+                    with gr.Tab("Writing-style profile"):
+                        style_out = gr.Markdown()
+                    with gr.Tab("Retrieved evidence"):
+                        cover_evidence = gr.Markdown()
+                    with gr.Tab("Fact-check report"):
+                        fact_check = gr.Markdown()
+                    with gr.Tab("Run log"):
+                        cover_log = gr.Markdown()
 
     def _toggle_jd_mode(mode):
-        return gr.update(visible=mode == "Paste text"), gr.update(visible=mode == "Fetch from URL")
+        return (
+            gr.update(visible=mode == "Paste text"),
+            gr.update(visible=mode == "Fetch from URL"),
+        )
 
-    jd_mode.change(_toggle_jd_mode, inputs=jd_mode, outputs=[jd_text_input, jd_url])
-    cover_jd_mode.change(_toggle_jd_mode, inputs=cover_jd_mode, outputs=[cover_jd_text, cover_jd_url])
-    run_event = run_btn.click(
-        run,
-        inputs=[api_key_input, jd_mode, jd_text_input, jd_url, resume_file, resume_paste,
-                github_username, top_k, show_tags],
-        outputs=[status_box, resume_out, coverage_out, fabrication_out, evidence_out,
-                 diff_out, log_out, download_file],
+    def _select_workflow(workflow):
+        includes_resume = workflow in ("Tailor résumé", "Both")
+        includes_cover = workflow in ("Generate cover letter", "Both")
+        button_labels = {
+            "Tailor résumé": "Tailor my résumé",
+            "Generate cover letter": "Generate cover letter",
+            "Both": "Create both",
+        }
+        return (
+            gr.update(visible=includes_resume),
+            gr.update(visible=includes_cover),
+            gr.update(visible=includes_resume),
+            gr.update(visible=includes_cover),
+            gr.update(value=button_labels[workflow]),
+        )
+
+    def _run_selected(workflow, *inputs):
+        shared = inputs[:7]
+        top_k_value, show_tags_value = inputs[7:9]
+        cover_values = inputs[9:]
+        if workflow == "Tailor résumé":
+            for output in run(*shared, top_k_value, show_tags_value):
+                yield output + ("", "", "", "", "", "", "", gr.update(visible=False))
+        elif workflow == "Generate cover letter":
+            for output in run_cover_letter(*shared, *cover_values):
+                yield ("", "", "", "", "", "", "", gr.update(visible=False)) + output
+        else:
+            yield from run_both(
+                *shared, top_k_value, show_tags_value, *cover_values
+            )
+
+    jd_mode.change(
+        _toggle_jd_mode, inputs=jd_mode, outputs=[jd_text_input, jd_url]
     )
-    cover_run_event = cover_btn.click(
-        run_cover_letter,
-        inputs=[cover_api_key, cover_jd_mode, cover_jd_text, cover_jd_url,
-                cover_resume_file, cover_resume_paste, sample_file, sample_paste,
-                cover_github, motivation, length],
-        outputs=[cover_status, cover_out, cover_coverage, style_out, cover_evidence,
-                 fact_check, cover_log, cover_download],
+    workflow_type.change(
+        _select_workflow,
+        inputs=workflow_type,
+        outputs=[
+            resume_options,
+            cover_options,
+            resume_results,
+            cover_results,
+            run_btn,
+        ],
+    )
+    run_btn.click(
+        _run_selected,
+        inputs=[
+            workflow_type,
+            api_key_input,
+            jd_mode,
+            jd_text_input,
+            jd_url,
+            resume_file,
+            resume_paste,
+            github_username,
+            top_k,
+            show_tags,
+            sample_file,
+            sample_paste,
+            motivation,
+            length,
+        ],
+        outputs=[
+            status_box,
+            resume_out,
+            coverage_out,
+            fabrication_out,
+            evidence_out,
+            diff_out,
+            log_out,
+            download_file,
+            cover_status,
+            cover_out,
+            cover_coverage,
+            style_out,
+            cover_evidence,
+            fact_check,
+            cover_log,
+            cover_download,
+        ],
     )
 
 
