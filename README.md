@@ -1,6 +1,6 @@
 # AI Resume Builder
 
-[![Tests](https://github.com/gguillermomendoza/ai_resume_builder/actions/workflows/tests.yml/badge.svg?branch=work)](https://github.com/gguillermomendoza/ai_resume_builder/actions/workflows/tests.yml?query=branch%3Awork)
+[![Tests](https://github.com/gguillermomendoza/ai_resume_builder/actions/workflows/tests.yml/badge.svg)](https://github.com/gguillermomendoza/ai_resume_builder/actions/workflows/tests.yml)
 
 AI Resume Builder is a Gradio application that tailors a résumé to a job description and generates a matching cover letter, grounding candidate claims in evidence from the supplied résumé and optional public GitHub repository metadata while using a separate writing sample to guide the letter's style.
 
