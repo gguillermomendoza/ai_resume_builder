@@ -440,16 +440,26 @@ with gr.Blocks(title="AI Resume Builder") as demo:
                 github_username = gr.Textbox(label="GitHub username (optional)")
             gr.Markdown("### Job description")
             jd_mode = gr.Radio(
-                ["Paste text", "Fetch from URL"], value="Paste text", label=None
+                ["Paste text", "Fetch from URL"],
+                value="Paste text",
+                show_label=False,
             )
             jd_text_input = gr.Textbox(label="Paste the job description", lines=10)
             jd_url = gr.Textbox(label="Job posting URL", visible=False)
             gr.Markdown("### Résumé")
+            gr.Markdown(
+                "Used as source material for either workflow. It is only rewritten "
+                "when résumé tailoring is selected."
+            )
             resume_file = gr.File(
-                label="Upload résumé (.pdf, .md, .txt)",
+                label="Upload your current résumé",
                 file_types=[".pdf", ".md", ".txt"],
             )
-            resume_paste = gr.Textbox(label="…or paste your résumé", lines=8)
+            resume_paste = gr.Textbox(
+                label="Upload your current résumé",
+                placeholder="…or paste your résumé",
+                lines=8,
+            )
 
             with gr.Group(visible=True) as resume_options:
                 top_k = gr.Slider(
@@ -557,7 +567,9 @@ with gr.Blocks(title="AI Resume Builder") as demo:
             )
 
     jd_mode.change(
-        _toggle_jd_mode, inputs=jd_mode, outputs=[jd_text_input, jd_url]
+        _toggle_jd_mode,
+        inputs=jd_mode,
+        outputs=[jd_text_input, jd_url],
     )
     workflow_type.change(
         _select_workflow,
